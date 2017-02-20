@@ -101,11 +101,13 @@ class EpsilonGreedy(Strategy):
         self.arms_list = bandit.get_arms_list()
         return
 
-    def fit(self, iterations, **kwargs):
+    def fit(self, iterations, memory_multiplier = 1.0, **kwargs):
         """ Fit
 
         Args:
             iterations (int): number of iterations
+            memory_multiplier (double): exponential decay factor for arm
+                estimates. Must be in (0,1]
             **kwargs: other
 
         Returns:
@@ -116,6 +118,9 @@ class EpsilonGreedy(Strategy):
                 ...
         """
         assert(iterations >= len(self.arms_list))
+        assert(memory_multiplier > 0)
+        assert(memory_multiplier <= 1)
+
         iteration = 0
 
         reward_sum_per_arm = np.zeros(len(self.arms_list))
@@ -127,20 +132,28 @@ class EpsilonGreedy(Strategy):
 
 
         def pull_arm_index(arm_index, iteration):
+            nonlocal rewards, arms_pulled, \
+                reward_sum_per_arm, reward_count_per_arm, estimated_arm_means
             arm = self.arms_list[arm_index]
             reward = self.bandit.pull_arm(arm)
 
+            # Update statistics
             arms_pulled[iteration] = arm
             rewards[iteration] = reward
             reward_sum_per_arm[arm_index] += reward
             reward_count_per_arm[arm_index] += 1
 
+            # Calculate estimate of arm means
             nonzero_arms = reward_count_per_arm > 0
             estimated_arm_means[nonzero_arms, iteration] = (
                     reward_sum_per_arm[nonzero_arms] /
                     reward_count_per_arm[nonzero_arms]
                     )
             estimated_arm_means[~nonzero_arms, iteration] = np.nan
+
+            # Apply memory_multiplier
+            reward_sum_per_arm *= memory_multiplier
+            reward_count_per_arm *= memory_multiplier
             return
 
         # Pull each arm once
