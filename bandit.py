@@ -1,3 +1,5 @@
+import numpy as np
+
 class Bandit:
     def __init__(self):
         raise NotImplementedError
@@ -19,3 +21,28 @@ class Bandit:
                     arm of the bandit.
         """
         raise NotImplementedError
+
+
+class StaticBernoulli(Bandit):
+    def __init__(self, probs):
+        self.probs = probs
+
+    def get_arms_list(self):
+        return range(len(self.probs))
+
+    def pull_arm(self, arm):
+        return np.random.binomial(n=1, p=self.probs[arm])
+
+
+class StaticGaussian(Bandit):
+    def __init__(self, mu, sigma):
+        self.mu = mu
+        self.sigma = sigma
+
+    def get_arms_list(self):
+        return range(len(self.mu))
+
+    def pull_arm(self, arm):
+        return np.random.normal(loc=self.mu[arm], scale=self.sigma[arm])
+
+
