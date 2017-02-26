@@ -7,7 +7,7 @@ Created on Sun Feb 19 16:05:20 2017
 """
 
 import numpy as np
-from bandit import DynamicBandit
+from bandit import LinearInterpolationBandit
 from strategy import EpsilonGreedy
 import matplotlib.pyplot as plt
 
@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt
 # Main Script
 if __name__ == "__main__":
     print("practice script py")
-    my_bandit = DynamicBandit(means=np.array([[10, 0],[0,10]]),
-                              periods = [200, 200])
+    my_bandit = LinearInterpolationBandit(means=np.array([[10, 0], [0, 10]]),
+                                          periods = [200, 200])
     my_strategy = EpsilonGreedy(bandit = my_bandit, epsilon = 0.1)
     out = my_strategy.fit(iterations=1000, memory_multiplier = 0.9)
     print("Average Reward: " + str(np.mean(out['rewards'])))

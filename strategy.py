@@ -32,7 +32,7 @@ class Strategy:
 class ThompsonBernoulli(Strategy):
     def __init__(self, bandit, alpha_prior, beta_prior):
         self.bandit = bandit
-        self.num_arms = len(bandit.get_arms_list())
+        self.num_arms = bandit.num_arms
         self.alpha_posterior = [alpha_prior] * self.num_arms
         self.beta_posterior = [beta_prior] * self.num_arms
 
@@ -60,7 +60,7 @@ class ThompsonBernoulli(Strategy):
 class ThompsonGaussianKnownSigma(Strategy):
     def __init__(self, bandit, sigma, mu_prior, sigma_prior):
         self.bandit = bandit
-        self.num_arms = len(bandit.get_arms_list())
+        self.num_arms = bandit.num_arms
         self.mu_posterior = [mu_prior] * self.num_arms
         self.sigma_posterior = [sigma_prior] * self.num_arms
         self.sigma = sigma
@@ -98,7 +98,7 @@ class EpsilonGreedy(Strategy):
         if epsilon > 1 or epsilon < 0:
             raise ValueError("epsilon {0} must be in [0,1]".format(epsilon))
         self.epsilon = epsilon
-        self.arms_list = bandit.get_arms_list()
+        self.num_arms = self.bandit.num_arms
         return
 
     def fit(self, iterations, memory_multiplier = 1.0, **kwargs):
@@ -117,15 +117,15 @@ class EpsilonGreedy(Strategy):
                 arms_pulled (list): the arm pulled at every iteration.
                 ...
         """
-        assert(iterations >= len(self.arms_list))
+        assert(iterations >= self.num_arms)
         assert(memory_multiplier > 0)
         assert(memory_multiplier <= 1)
 
         iteration = 0
 
-        reward_sum_per_arm = np.zeros(len(self.arms_list))
-        reward_count_per_arm = np.zeros(len(self.arms_list))
-        estimated_arm_means = np.zeros((len(self.arms_list), iterations))
+        reward_sum_per_arm = np.zeros(self.num_arms)
+        reward_count_per_arm = np.zeros(self.num_arms)
+        estimated_arm_means = np.zeros((self.num_arms, iterations))
 
         rewards = [None] * iterations
         arms_pulled = [None] * iterations
@@ -134,11 +134,10 @@ class EpsilonGreedy(Strategy):
         def pull_arm_index(arm_index, iteration):
             nonlocal rewards, arms_pulled, \
                 reward_sum_per_arm, reward_count_per_arm, estimated_arm_means
-            arm = self.arms_list[arm_index]
-            reward = self.bandit.pull_arm(arm)
+            reward = self.bandit.pull_arm(arm_index)
 
             # Update statistics
-            arms_pulled[iteration] = arm
+            arms_pulled[iteration] = arm_index
             rewards[iteration] = reward
             reward_sum_per_arm[arm_index] += reward
             reward_count_per_arm[arm_index] += 1
@@ -157,7 +156,7 @@ class EpsilonGreedy(Strategy):
             return
 
         # Pull each arm once
-        scan_order = np.arange(len(self.arms_list))
+        scan_order = np.arange(self.num_arms)
         np.random.shuffle(scan_order)
         for arm_index in scan_order:
             pull_arm_index(arm_index, iteration)
@@ -167,7 +166,7 @@ class EpsilonGreedy(Strategy):
         while(iteration < iterations):
             if(np.random.rand() < self.epsilon):
                 # Explore
-                arm_index = np.random.randint(0, len(self.arms_list))
+                arm_index = np.random.randint(0, self.num_arms)
                 pull_arm_index(arm_index, iteration)
                 iteration += 1
 
