@@ -84,7 +84,7 @@ class LinearInterpolationBandit(DynamicBandit):
     """    
     def __init__(self, means = np.array([[0,10], [10,0]]),
                  periods = [100, 100],
-                 iteration = 0):
-        arms = [LinearInterpolationArm(means[i,:], periods, iteration) for i in range(len(means))]
-        super(LinearInterpolationBandit, self).__init__(arms)
+                 iteration = 0, noise_func=None, **kwargs):
+        arms = [LinearInterpolationArm(means[i,:], periods, iteration, noise_func=noise_func) for i in range(len(means))]
+        DynamicBandit.__init__(self, arms)
         return
