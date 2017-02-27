@@ -91,38 +91,20 @@ class DynamicBandit(Bandit):
         return observed_reward
 
 
-# class StaticBernoulli(Bandit):
-#     def __init__(self, probs):
-#         self.probs = probs
-#
-#     def arm_names(self):
-#         return range(len(self.probs))
-#
-#     def pull_arm(self, arm):
-#         return np.random.binomial(n=1, p=self.probs[arm])
-#
-#
-# class StaticGaussian(Bandit):
-#     def __init__(self, mu, sigma):
-#         self.mu = mu
-#         self.sigma = sigma
-#
-#     def arm_names(self):
-#         return range(len(self.mu))
-#
-#     def pull_arm(self, arm):
-#         return np.random.normal(loc=self.mu[arm], scale=self.sigma[arm])
-
 class LinearInterpolationArm(Arm):
     """ Linear interpolation arm
     """
-    def __init__(self, means, periods, iteration):
+    def __init__(self, means, periods, iteration, noise_func=None, **kwargs):
         self.__name = "lin_interp_arm"
 
         self.num_periods = len(means)
         self.means = means
         self.iteration = iteration
         self.periods = periods
+        if noise_func is None:
+            self.noise_func = lambda mean: np.random.normal(loc=mean)
+        else:
+            self.noise_func = noise_func
 
         if np.size(periods) != self.num_periods:
             raise ValueError("periods not correct size")
@@ -148,7 +130,7 @@ class LinearInterpolationArm(Arm):
             (1.0 - start_frac) * self.means[end_period]
         )
 
-        reward = np.random.normal(loc=arm_mean)
+        reward = self.noise_func(arm_mean)
         self.iteration += 1
 
         return reward
@@ -168,7 +150,7 @@ class LinearInterpolationBandit(DynamicBandit):
     """    
     def __init__(self, means = np.array([[0,10], [10,0]]),
                  periods = [100, 100],
-                 iteration = 0):
-        arms = [LinearInterpolationArm(means[i,:], periods, iteration) for i in range(len(means))]
-        super(LinearInterpolationBandit, self).__init__(arms)
+                 iteration = 0, noise_func=None, **kwargs):
+        arms = [LinearInterpolationArm(means[i,:], periods, iteration, noise_func=noise_func) for i in range(len(means))]
+        DynamicBandit.__init__(self, arms)
         return
