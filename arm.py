@@ -10,7 +10,6 @@ Users (typically Bandits) interact with Arms through the pull() method, which:
 
 import numpy as np
 
-
 class Arm:
     """ A bandit arm
 
@@ -35,24 +34,24 @@ class Arm:
 
 
 class WhiteNoiseArm(Arm):
-    def __init__(self, rng, name):
+    def __init__(self, name, rng):
         self.__name = name
-        self.rng = rng
+        self._rng = rng
 
     @property
     def name(self):
         return self.__name
 
     def pull(self):
-        return self.rng()
+        return self._rng()
 
 
 class BernoulliArm(WhiteNoiseArm):
     """Generates iid observations from a Bernoulli white noise"""
     def __init__(self, prob):
         WhiteNoiseArm.__init__(self,
-                               rng=lambda: np.random.binomial(n=1, p=prob),
-                               name='bernoulli_arm')
+                               name='bernoulli_arm',
+                               rng=lambda: np.random.binomial(n=1, p=prob))
         self.prob = prob
 
 
@@ -60,8 +59,8 @@ class GaussianArm(WhiteNoiseArm):
     """Generates iid observations from a Gaussian white noise"""
     def __init__(self, mu, sigma):
         WhiteNoiseArm.__init__(self,
-                               rng=lambda: np.random.normal(loc=mu, scale=sigma),
-                               name='gaussian_arm')
+                               name='gaussian_arm',
+                               rng=lambda: np.random.normal(loc=mu, scale=sigma))
         self.mu = mu
         self.sigma = sigma
 

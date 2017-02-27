@@ -1,5 +1,10 @@
+"""
+
+"""
+
 import numpy as np
 from arm import *
+
 
 class Bandit:
     def __init__(self, **kwargs):
@@ -31,20 +36,20 @@ class Bandit:
 
 class StaticBandit(Bandit):
     def __init__(self, arms):
-        self.__arms = arms
-        self.__num_arms = len(arms)
-        self.__arm_names = [arm.name for arm in arms]
+        self._arms = arms
+        self._num_arms = len(arms)
+        self._arm_names = [arm.name for arm in arms]
 
     @property
     def num_arms(self):
-        return self.__num_arms
+        return self._num_arms
 
     @property
     def arm_names(self):
-        return self.__arm_names
+        return self._arm_names
 
     def pull_arm(self, arm_index):
-        return self.__arms[arm_index].pull()
+        return self._arms[arm_index].pull()
 
 
 class DynamicBandit(Bandit):
@@ -70,6 +75,7 @@ class DynamicBandit(Bandit):
         return observed_reward
 
 
+# TODO: noise_func isnt defined in LinearInterpolationArm constructor. pls fix?
 class LinearInterpolationBandit(DynamicBandit):
     """ Linear interpolation bandit
     

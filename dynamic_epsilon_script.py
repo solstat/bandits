@@ -6,11 +6,10 @@ Created on Sun Feb 19 16:05:20 2017
 @author: nghoiyi
 """
 
-import numpy as np
-from bandit import LinearInterpolationBandit
-from strategy import EpsilonGreedy
 import matplotlib.pyplot as plt
-
+import numpy as np
+from strategy import EpsilonGreedy
+from bandit import LinearInterpolationBandit
 
 # Main Script
 if __name__ == "__main__":

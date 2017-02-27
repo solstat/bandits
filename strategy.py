@@ -1,5 +1,12 @@
+"""
+
+
+"""
+
 import numpy as np
-from scipy.stats import beta
+import scipy.stats
+from copy import deepcopy
+import matplotlib.pyplot as plt
 
 class Strategy:
     """ Base Strategy Class
@@ -29,120 +36,104 @@ class Strategy:
         raise NotImplementedError
 
 
-# TODO: INCOMPLETE
 class ThompsonSampling(Strategy):
     def __init__(self, bandit, **kwargs):
         self.bandit = bandit
         self.num_arms = bandit.num_arms
-        self.prior_params = dict()
-        for key, value in kwargs.iteritems():
-            self.prior_params[key] = [value] * self.num_arms
+        self.prior_params = [deepcopy(kwargs) for _ in range(self.num_arms)]
+        self.posterior_params = deepcopy(self.prior_params)
 
-    def choose_arm(self):
-        # mean_samples = [self.rng(params) for params in prior_params]
-        mean_samples = [beta.rvs(a, b, size=1) for a, b in
-                        zip(self.alpha_posterior, self.beta_posterior)]
-        return np.argmax(mean_samples)
+    def fit(self, iterations, restart=False, plot=True):
+        if restart == True:
+            self._restart()
 
-    def pull_arm(self, arm_index):
+        index_arms_pulled = [None] * iterations
+        observed_rewards = [None] * iterations
+        mean_reward_estimates = [None] * iterations
+        for i in range(iterations):
+            index_arms_pulled[i] = self._choose_arm()
+            observed_rewards[i] = self._pull_arm(index_arms_pulled[i])
+            self._update_posterior(index_arms_pulled[i], observed_rewards[i])
+            mean_reward_estimates[i] = self.mean_reward_estimates
+
+        if plot == True:
+            plt.close()
+            plt.plot(mean_reward_estimates)
+            plt.show()
+
+        out = {
+            'rewards': observed_rewards,
+            'arms_pulled': index_arms_pulled,
+            'estimated_arm_means': mean_reward_estimates
+        }
+        return out
+
+    def _restart(self):
+        self.posterior_params = deepcopy(self.prior_params)
+
+    def _choose_arm(self):
+        samples = [self._sample(**params) for params in self.posterior_params]
+        return np.argmax(samples)
+
+    def _pull_arm(self, arm_index):
         return self.bandit.pull_arm(arm_index)
 
-    def update_mean_posterior(self, arm_index, observed_reward):
+    def _sample(self, **kwargs):
         raise NotImplementedError
 
-    def fit(self, iterations):
-        for iter in range(iterations):
-            arm_index = self.choose_arm()
-            observed_reward = self.pull_arm(arm_index)
-            self.update_mean_posterior(arm_index, observed_reward)
+    def _update_posterior(self, arm_index, observed_reward):
+        raise NotImplementedError
+
+    @property
+    def mean_reward_estimates(self):
+        raise NotImplementedError
 
 
-            # out_dict = dict(
-            #         rewards = rewards,
-            #         arms_pulled = arms_pulled,
-            #         estimated_arm_means = estimated_arm_means,
-            #         )
-            # return out_dict
-
-# TODO: INCOMPLETE
 class ThompsonBernoulli(ThompsonSampling):
-    # def __init__(self, bandit, alpha_prior, beta_prior):
-    #     self.bandit = bandit
-    #     self.num_arms = bandit.num_arms
-    #     self.alpha_posterior = [alpha_prior] * self.num_arms
-    #     self.beta_posterior = [beta_prior] * self.num_arms
+    """asdf"""
+
     def __init__(self, bandit, alpha_prior, beta_prior):
-        ThompsonSampling.__init__(bandit, alpha_prior, beta_prior)
+        ThompsonSampling.__init__(self, bandit, alpha=alpha_prior, beta=beta_prior)
 
+    def _sample(self, alpha, beta):
+        return scipy.stats.beta.rvs(alpha, beta, size=1)
 
-    def choose_arm(self):
-        mean_samples = [beta.rvs(a, b, size=1) for a, b in
-                        zip(self.alpha_posterior, self.beta_posterior)]
-        return np.argmax(mean_samples)
-
-    def update_mean_posterior(self, arm_index, observed_reward):
+    def _update_posterior(self, arm_index, observed_reward):
         if observed_reward == 1:
-            self.alpha_posterior[arm_index] += 1
+            self.posterior_params[arm_index]['alpha'] += 1
         else:
-            self.beta_posterior[arm_index] += 1
+            self.posterior_params[arm_index]['beta'] += 1
+
+    @property
+    def mean_reward_estimates(self):
+        return [params['alpha'] / (params['alpha'] + params['beta']) for params
+                in self.posterior_params]
 
 
-# class ThompsonBernoulli(Strategy):
-#     def __init__(self, bandit, alpha_prior, beta_prior):
-#         self.bandit = bandit
-#         self.num_arms = bandit.num_arms
-#         self.alpha_posterior = [alpha_prior] * self.num_arms
-#         self.beta_posterior = [beta_prior] * self.num_arms
-#
-#     def choose_arm(self):
-#         mean_samples = [beta.rvs(a, b, size=1) for a, b in
-#                         zip(self.alpha_posterior, self.beta_posterior)]
-#         return np.argmax(mean_samples)
-#
-#     def pull_arm(self, arm_index):
-#         return self.bandit.pull_arm(arm_index)
-#
-#     def update_mean_posterior(self, arm_index, observed_reward):
-#         if observed_reward == 1:
-#             self.alpha_posterior[arm_index] += 1
-#         else:
-#             self.beta_posterior[arm_index] += 1
-#
-#     def fit(self, iterations):
-#         for iter in range(iterations):
-#             arm_index = self.choose_arm()
-#             observed_reward = self.pull_arm(arm_index)
-#             self.update_mean_posterior(arm_index, observed_reward)
+class ThompsonGaussianKnownSigma(ThompsonSampling):
+    """asdf """
 
-
-
-
-class ThompsonGaussianKnownSigma(Strategy):
     def __init__(self, bandit, sigma, mu_prior, sigma_prior):
-        self.bandit = bandit
-        self.num_arms = bandit.num_arms
-        self.mu_posterior = [mu_prior] * self.num_arms
-        self.sigma_posterior = [sigma_prior] * self.num_arms
+        ThompsonSampling.__init__(self, bandit, mu=mu_prior, sigma=sigma_prior)
         self.sigma = sigma
 
-    def choose_arm(self):
-        mean_samples = [np.random.normal(loc=mu, scale=sigma) for mu, sigma in
-                        zip(self.mu_posterior, self.sigma_posterior)]
-        return np.argmax(mean_samples)
+    def _sample(self, mu, sigma):
+        return np.random.normal(loc=mu, scale=sigma)
 
-    def pull_arm(self, arm_index):
-        return self.bandit.pull_arm(arm_index)
+    def _update_posterior(self, arm_index, observed_reward):
+        sigma2 = self.sigma ** 2
+        old_mu_posterior = self.posterior_params[arm_index]['mu']
+        old_sigma2_posterior = self.posterior_params[arm_index]['sigma'] ** 2
 
-    def update_mean_posterior(self, arm_index, observed_reward):
-        temp_sigma = 1 / (1 / self.sigma_posterior[arm_index] ** 2 + 1 / self.sigma ** 2)
-        self.mu_posterior[arm_index] = (self.mu_posterior[arm_index] / self.sigma_posterior[arm_index] ** 2 + observed_reward / self.sigma ** 2) * temp_sigma
-        self.sigma_posterior[arm_index] = np.sqrt(temp_sigma)
+        new_sigma_posterior = 1 / (1 / old_sigma2_posterior + 1 / sigma2)
+        new_mu_posterior = (old_mu_posterior / old_sigma2_posterior + observed_reward / sigma2) * new_sigma_posterior
+        self.posterior_params[arm_index]['mu'] = new_mu_posterior
+        self.posterior_params[arm_index]['sigma'] = np.sqrt(new_sigma_posterior)
 
-    def fit(self, iterations):
-        for iter in range(iterations):
-            arm_index = self.choose_arm()
-            observed_reward = self.pull_arm(arm_index)
-            self.update_mean_posterior(arm_index, observed_reward)
+    @property
+    def mean_reward_estimates(self):
+        return [params['mu'] for params in self.posterior_params]
+
 
 class EpsilonGreedy(Strategy):
     """ Epislon Greedy Strategy
@@ -194,7 +185,7 @@ class EpsilonGreedy(Strategy):
         def pull_arm_index(arm_index, iteration):
             nonlocal rewards, arms_pulled, \
                 reward_sum_per_arm, reward_count_per_arm, estimated_arm_means
-            reward = self.bandit.pull_arm(arm_index)
+            reward = self.bandit._pull_arm(arm_index)
 
             # Update statistics
             arms_pulled[iteration] = arm_index
@@ -286,7 +277,7 @@ class UCB(Strategy):
         def pull_arm_with_index(arm_index, iteration):
             nonlocal rewards, arms_pulled, \
                 reward_sum_per_arm, reward_count_per_arm, estimated_arm_means
-            reward = self.bandit.pull_arm(arm_index)
+            reward = self.bandit._pull_arm(arm_index)
             if reward < 0 or reward > 1:
                 raise Exception("UCB bandit algorithm only works when bandit arms " +
                                 "return rewards between 0 and 1.")
