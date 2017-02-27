@@ -29,14 +29,17 @@ class Strategy:
         raise NotImplementedError
 
 
-class ThompsonBernoulli(Strategy):
-    def __init__(self, bandit, alpha_prior, beta_prior):
+# TODO: INCOMPLETE
+class ThompsonSampling(Strategy):
+    def __init__(self, bandit, **kwargs):
         self.bandit = bandit
         self.num_arms = bandit.num_arms
-        self.alpha_posterior = [alpha_prior] * self.num_arms
-        self.beta_posterior = [beta_prior] * self.num_arms
+        self.prior_params = dict()
+        for key, value in kwargs.iteritems():
+            self.prior_params[key] = [value] * self.num_arms
 
     def choose_arm(self):
+        # mean_samples = [self.rng(params) for params in prior_params]
         mean_samples = [beta.rvs(a, b, size=1) for a, b in
                         zip(self.alpha_posterior, self.beta_posterior)]
         return np.argmax(mean_samples)
@@ -45,16 +48,73 @@ class ThompsonBernoulli(Strategy):
         return self.bandit.pull_arm(arm_index)
 
     def update_mean_posterior(self, arm_index, observed_reward):
-        if observed_reward == 1:
-            self.alpha_posterior[arm_index] += 1
-        else:
-            self.beta_posterior[arm_index] += 1
+        raise NotImplementedError
 
     def fit(self, iterations):
         for iter in range(iterations):
             arm_index = self.choose_arm()
             observed_reward = self.pull_arm(arm_index)
             self.update_mean_posterior(arm_index, observed_reward)
+
+
+            # out_dict = dict(
+            #         rewards = rewards,
+            #         arms_pulled = arms_pulled,
+            #         estimated_arm_means = estimated_arm_means,
+            #         )
+            # return out_dict
+
+# TODO: INCOMPLETE
+class ThompsonBernoulli(ThompsonSampling):
+    # def __init__(self, bandit, alpha_prior, beta_prior):
+    #     self.bandit = bandit
+    #     self.num_arms = bandit.num_arms
+    #     self.alpha_posterior = [alpha_prior] * self.num_arms
+    #     self.beta_posterior = [beta_prior] * self.num_arms
+    def __init__(self, bandit, alpha_prior, beta_prior):
+        ThompsonSampling.__init__(bandit, alpha_prior, beta_prior)
+
+
+    def choose_arm(self):
+        mean_samples = [beta.rvs(a, b, size=1) for a, b in
+                        zip(self.alpha_posterior, self.beta_posterior)]
+        return np.argmax(mean_samples)
+
+    def update_mean_posterior(self, arm_index, observed_reward):
+        if observed_reward == 1:
+            self.alpha_posterior[arm_index] += 1
+        else:
+            self.beta_posterior[arm_index] += 1
+
+
+# class ThompsonBernoulli(Strategy):
+#     def __init__(self, bandit, alpha_prior, beta_prior):
+#         self.bandit = bandit
+#         self.num_arms = bandit.num_arms
+#         self.alpha_posterior = [alpha_prior] * self.num_arms
+#         self.beta_posterior = [beta_prior] * self.num_arms
+#
+#     def choose_arm(self):
+#         mean_samples = [beta.rvs(a, b, size=1) for a, b in
+#                         zip(self.alpha_posterior, self.beta_posterior)]
+#         return np.argmax(mean_samples)
+#
+#     def pull_arm(self, arm_index):
+#         return self.bandit.pull_arm(arm_index)
+#
+#     def update_mean_posterior(self, arm_index, observed_reward):
+#         if observed_reward == 1:
+#             self.alpha_posterior[arm_index] += 1
+#         else:
+#             self.beta_posterior[arm_index] += 1
+#
+#     def fit(self, iterations):
+#         for iter in range(iterations):
+#             arm_index = self.choose_arm()
+#             observed_reward = self.pull_arm(arm_index)
+#             self.update_mean_posterior(arm_index, observed_reward)
+
+
 
 
 class ThompsonGaussianKnownSigma(Strategy):

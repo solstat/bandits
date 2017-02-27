@@ -9,7 +9,8 @@ from bandit import *
 
 
 # Bernoulli
-bernoulli_bandit = StaticBernoulli(probs=[0.3, 0.7])
+bernoulli_bandit = StaticBandit(arms=[BernoulliArm(prob=0.3),
+                                      BernoulliArm(prob=0.7)])
 bernoulli_bandit.pull_arm(1)
 
 my_strategy = ThompsonBernoulli(bandit=bernoulli_bandit,
