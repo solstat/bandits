@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from bandit import LinearInterpolationBandit
 from strategy import EpsilonGreedy, UCB
-import matplotlib.pyplot as plt
 
 # Main Script
 if __name__ == "__main__":
