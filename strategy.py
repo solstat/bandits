@@ -52,7 +52,7 @@ class ThompsonSampling(Strategy):
         mean_reward_estimates = [None] * iterations
         for i in range(iterations):
             index_arms_pulled[i] = self._choose_arm()
-            observed_rewards[i] = self._pull_arm(index_arms_pulled[i])
+            observed_rewards[i] = self.pull_arm(index_arms_pulled[i])
             self._update_posterior(index_arms_pulled[i], observed_rewards[i])
             mean_reward_estimates[i] = self.mean_reward_estimates
 
@@ -75,7 +75,7 @@ class ThompsonSampling(Strategy):
         samples = [self._sample(**params) for params in self.posterior_params]
         return np.argmax(samples)
 
-    def _pull_arm(self, arm_index):
+    def pull_arm(self, arm_index):
         return self.bandit.pull_arm(arm_index)
 
     def _sample(self, **kwargs):
@@ -185,7 +185,7 @@ class EpsilonGreedy(Strategy):
         def pull_arm_index(arm_index, iteration):
             nonlocal rewards, arms_pulled, \
                 reward_sum_per_arm, reward_count_per_arm, estimated_arm_means
-            reward = self.bandit._pull_arm(arm_index)
+            reward = self.bandit.pull_arm(arm_index)
 
             # Update statistics
             arms_pulled[iteration] = arm_index
@@ -277,7 +277,7 @@ class UCB(Strategy):
         def pull_arm_with_index(arm_index, iteration):
             nonlocal rewards, arms_pulled, \
                 reward_sum_per_arm, reward_count_per_arm, estimated_arm_means
-            reward = self.bandit._pull_arm(arm_index)
+            reward = self.bandit.pull_arm(arm_index)
             if reward < 0 or reward > 1:
                 raise Exception("UCB bandit algorithm only works when bandit arms " +
                                 "return rewards between 0 and 1.")
