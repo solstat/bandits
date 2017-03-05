@@ -68,14 +68,17 @@ class GaussianArm(WhiteNoiseArm):
 class LinearInterpolationArm(Arm):
     """ Linear interpolation arm
     """
-
-    def __init__(self, means, periods, iteration):
+    def __init__(self, means, periods, iteration, noise_func=None, **kwargs):
         self.__name = "lin_interp_arm"
 
         self.num_periods = len(means)
         self.means = means
         self.iteration = iteration
         self.periods = periods
+        if noise_func is None:
+            self.noise_func = lambda mean: np.random.normal(loc=mean)
+        else:
+            self.noise_func = noise_func
 
         if np.size(periods) != self.num_periods:
             raise ValueError("periods not correct size")
@@ -101,7 +104,7 @@ class LinearInterpolationArm(Arm):
             (1.0 - start_frac) * self.means[end_period]
         )
 
-        reward = np.random.normal(loc=arm_mean)
+        reward = self.noise_func(arm_mean)
         self.iteration += 1
 
         return reward
