@@ -43,7 +43,7 @@ class ThompsonSampling(Strategy):
         self.prior_params = [deepcopy(kwargs) for _ in range(self.num_arms)]
         self.posterior_params = deepcopy(self.prior_params)
 
-    def fit(self, iterations, restart=False, plot=True):
+    def fit(self, iterations, restart=False, plot=False):
         if restart == True:
             self._restart()
 
@@ -113,22 +113,38 @@ class ThompsonBernoulli(ThompsonSampling):
 class ThompsonGaussianKnownSigma(ThompsonSampling):
     """asdf """
 
-    def __init__(self, bandit, sigma, mu_prior, sigma_prior):
-        ThompsonSampling.__init__(self, bandit, mu=mu_prior, sigma=sigma_prior)
-        self.sigma = sigma
+    def __init__(self, bandit, sigma, mu_prior, sigma_prior, memory_multiplier=0.9):
+        ThompsonSampling.__init__(self, bandit, mu=mu_prior, sigma2=sigma_prior ** 2)
+        self.sigma2 = sigma ** 2
+        self.sufficient_statistics = [{'n': 0, 'xsum': 0} for _ in range(self.num_arms)]
+        self.memory_multiplier = memory_multiplier
 
-    def _sample(self, mu, sigma):
-        return np.random.normal(loc=mu, scale=sigma)
+    def _sample(self, mu, sigma2):
+        return np.random.normal(loc=mu, scale=np.sqrt(sigma2))
 
     def _update_posterior(self, arm_index, observed_reward):
-        sigma2 = self.sigma ** 2
-        old_mu_posterior = self.posterior_params[arm_index]['mu']
-        old_sigma2_posterior = self.posterior_params[arm_index]['sigma'] ** 2
+        sigma2 = self.sigma2
 
-        new_sigma_posterior = 1 / (1 / old_sigma2_posterior + 1 / sigma2)
-        new_mu_posterior = (old_mu_posterior / old_sigma2_posterior + observed_reward / sigma2) * new_sigma_posterior
-        self.posterior_params[arm_index]['mu'] = new_mu_posterior
-        self.posterior_params[arm_index]['sigma'] = np.sqrt(new_sigma_posterior)
+        for index in range(self.num_arms):
+            old_n = self.sufficient_statistics[index]['n']
+            old_xsum = self.sufficient_statistics[index]['xsum']
+            mu_prior = self.prior_params[index]['mu']
+            sigma2_prior = self.prior_params[index]['sigma2']
+
+            if index == arm_index:
+                new_n = self.memory_multiplier * old_n + 1
+                new_xsum = self.memory_multiplier * old_xsum + observed_reward
+            else:
+                new_n = self.memory_multiplier * old_n
+                new_xsum = self.memory_multiplier * old_xsum
+
+            new_sigma2_posterior = 1 / (1 / sigma2_prior + new_n / sigma2)
+            new_mu_posterior = (mu_prior / sigma2_prior + new_xsum / sigma2) * new_sigma2_posterior
+
+            self.sufficient_statistics[index]['n'] = new_n
+            self.sufficient_statistics[index]['xsum'] = new_xsum
+            self.posterior_params[index]['mu'] = new_mu_posterior
+            self.posterior_params[index]['sigma2'] = new_sigma2_posterior
 
     @property
     def mean_reward_estimates(self):
