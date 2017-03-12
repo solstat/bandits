@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 
-class SST_Bandit(Bandit):
+class SSTBandit(Bandit):
     """ Sea-Surface Temperature Bandit
 
     Args:
@@ -82,7 +82,7 @@ class SST_Bandit(Bandit):
 
     def _check_arm_index(self, arm_index):
         # Check format of arm_index
-        if not isinstance(arm_index, int):
+        if arm_index != int(arm_index):
             raise TypeError("arm_index must be an int")
         if arm_index < 0 or arm_index >= self.num_arms:
             raise ValueError("Invalid arm_index: {0}".format(arm_index))
@@ -112,7 +112,7 @@ class SST_Bandit(Bandit):
 
 if __name__ == "__main__":
     sst_df = pd.read_csv("./data/coarse_sst.csv")
-    my_bandit = SST_Bandit(sst_df, 1)
+    my_bandit = SSTBandit(sst_df, 1)
     def to_profile():
         for _ in range(100):
             print(my_bandit.pull_arm(0))

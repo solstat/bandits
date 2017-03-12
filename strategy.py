@@ -232,13 +232,13 @@ class EpsilonGreedy(Strategy):
         while(iteration < iterations):
             if(np.random.rand() < self.epsilon):
                 # Explore
-                arm_index = np.random.randint(0, self.num_arms)
+                arm_index = int(np.random.randint(0, self.num_arms))
                 pull_arm_index(arm_index, iteration)
                 iteration += 1
 
             else:
                 # Greedy
-                arm_index = np.argmax(estimated_arm_means[:,iteration-1])
+                arm_index = int(np.argmax(estimated_arm_means[:,iteration-1]))
                 pull_arm_index(arm_index, iteration)
                 iteration += 1
 
