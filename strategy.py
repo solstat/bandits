@@ -150,7 +150,6 @@ class ThompsonGaussianKnownSigma(ThompsonSampling):
     def mean_reward_estimates(self):
         return [params['mu'] for params in self.posterior_params]
 
-
 class EpsilonGreedy(Strategy):
     """ Epislon Greedy Strategy
 
@@ -191,7 +190,7 @@ class EpsilonGreedy(Strategy):
         iteration = 0
 
         reward_sum_per_arm = np.zeros(self.num_arms)
-        reward_count_per_arm = np.zeros(self.num_arms)
+        pull_count_per_arm = np.zeros(self.num_arms)
         estimated_arm_means = np.zeros((self.num_arms, iterations))
 
         rewards = [None] * iterations
@@ -200,26 +199,26 @@ class EpsilonGreedy(Strategy):
 
         def pull_arm_index(arm_index, iteration):
             nonlocal rewards, arms_pulled, \
-                reward_sum_per_arm, reward_count_per_arm, estimated_arm_means
+                reward_sum_per_arm, pull_count_per_arm, estimated_arm_means
             reward = self.bandit.pull_arm(arm_index)
 
             # Update statistics
             arms_pulled[iteration] = arm_index
             rewards[iteration] = reward
             reward_sum_per_arm[arm_index] += reward
-            reward_count_per_arm[arm_index] += 1
+            pull_count_per_arm[arm_index] += 1
 
             # Calculate estimate of arm means
-            nonzero_arms = reward_count_per_arm > 0
+            nonzero_arms = pull_count_per_arm > 0
             estimated_arm_means[nonzero_arms, iteration] = (
                     reward_sum_per_arm[nonzero_arms] /
-                    reward_count_per_arm[nonzero_arms]
+                    pull_count_per_arm[nonzero_arms]
                     )
             estimated_arm_means[~nonzero_arms, iteration] = np.nan
 
             # Apply memory_multiplier
             reward_sum_per_arm *= memory_multiplier
-            reward_count_per_arm *= memory_multiplier
+            pull_count_per_arm *= memory_multiplier
             return
 
         # Pull each arm once
@@ -284,7 +283,7 @@ class UCB(Strategy):
         iteration = 0
 
         reward_sum_per_arm = np.zeros(self.num_arms)
-        reward_count_per_arm = np.zeros(self.num_arms)
+        pull_count_per_arm = np.zeros(self.num_arms)
         estimated_arm_means = np.zeros((self.num_arms, iterations))
 
         rewards = [None] * iterations
@@ -292,7 +291,7 @@ class UCB(Strategy):
 
         def pull_arm_with_index(arm_index, iteration):
             nonlocal rewards, arms_pulled, \
-                reward_sum_per_arm, reward_count_per_arm, estimated_arm_means
+                reward_sum_per_arm, pull_count_per_arm, estimated_arm_means
             reward = self.bandit.pull_arm(arm_index)
             if reward < 0 or reward > 1:
                 raise Exception("UCB bandit algorithm only works when bandit arms " +
@@ -302,13 +301,13 @@ class UCB(Strategy):
             arms_pulled[iteration] = arm_index
             rewards[iteration] = reward
             reward_sum_per_arm[arm_index] += reward
-            reward_count_per_arm[arm_index] += 1
+            pull_count_per_arm[arm_index] += 1
 
             # Calculate estimate of arm means
-            nonzero_arms = reward_count_per_arm > 0
+            nonzero_arms = pull_count_per_arm > 0
             estimated_arm_means[nonzero_arms, iteration] = (
                     reward_sum_per_arm[nonzero_arms] /
-                    reward_count_per_arm[nonzero_arms]
+                    pull_count_per_arm[nonzero_arms]
                     )
             estimated_arm_means[~nonzero_arms, iteration] = np.nan
 
@@ -323,7 +322,8 @@ class UCB(Strategy):
 
         # UCB alg
         while(iteration < iterations):
-            arm_index = np.argmax(estimated_arm_means[:,iteration - 1] + np.sqrt(2 * np.log(iterations) / reward_count_per_arm))
+            arm_index = np.argmax(estimated_arm_means[:,iteration - 1] +
+                    np.sqrt(2 * np.log(iterations) / pull_count_per_arm))
 
             pull_arm_with_index(arm_index, iteration)
             iteration += 1
