@@ -3,6 +3,16 @@ import numpy as np
 
 def run_strategies(strategy_builders, bandit_builder,
                    iterations, replications=1):
+    """ 
+    Args:
+      strategy_builders (list of tuples): 
+        first entry is a function that takes a Bandit and returns a Strategy
+        second entry is the strategy name
+        third entry is kwargs for Strategy.fit
+      bandit_builder (func): returns a Bandit
+      iterations (int): number of iterations of fit for each strategy
+      replications (int): number of replications of each strategy + bandit pair
+    """
 
     all_rewards = []
     all_cum_rewards = []
