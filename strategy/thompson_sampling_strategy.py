@@ -20,8 +20,8 @@ class ThompsonSampling(Strategy):
     Attributes:
         num_arms (int)
         posterior_params (list of list): posterior parameters
-        estimated_arm_means (ndarray): posterior predictive mean
-        estimated_arm_sds (ndarray): posterior predictive standard deviation
+        estimated_arm_means (ndarray): posterior mean
+        estimated_arm_sds (ndarray): posterior standard deviation
     """
     def __init__(self, bandit, **kwargs):
         self.bandit = bandit
@@ -98,18 +98,21 @@ class ThompsonBernoulli(ThompsonSampling):
     @property
     def estimated_arm_sds(self):
         sd = lambda params: np.sqrt(
-                    (params['alpha'] / (params['alpha'] + params['beta'])) *
-                    (1 - params['alpha'] / (params['alpha'] + params['beta']))
+                    params['alpha'] * params['beta'] /
+                    ( (params['alpha'] + params['beta'])**2 *
+                      (params['alpha'] + params['beta'] + 1) )
                 )
         return np.array([sd(params) for params in self.posterior_params])
 
 class ThompsonGaussianKnownSigma(ThompsonSampling):
     def __init__(self, bandit, sigma, mu_prior, sigma_prior,
-            memory_multiplier=0.9):
+            memory_multiplier=1.0):
         ThompsonSampling.__init__(self, bandit, mu=mu_prior,
                 sigma2=sigma_prior ** 2)
         self.sigma2 = sigma ** 2
         self.sufficient_statistics = [{'n': 0, 'xsum': 0} for _ in range(self.num_arms)]
+        if memory_multiplier <= 0 or memory_multiplier > 1:
+            raise ValueError("Memory Multiplier should be in (0,1]")
         self.memory_multiplier = memory_multiplier
 
     def _sample(self, mu, sigma2):
@@ -138,6 +141,7 @@ class ThompsonGaussianKnownSigma(ThompsonSampling):
             self.sufficient_statistics[index]['xsum'] = new_xsum
             self.posterior_params[index]['mu'] = new_mu_posterior
             self.posterior_params[index]['sigma2'] = new_sigma2_posterior
+        return
 
     @property
     def estimated_arm_means(self):
@@ -145,7 +149,69 @@ class ThompsonGaussianKnownSigma(ThompsonSampling):
 
     @property
     def estimated_arm_sds(self):
-        return np.array([self.sigma2 + params['sigma2']
+        return np.array([params['sigma2'] for params in self.posterior_params])
+
+class ThompsonGaussian(ThompsonSampling):
+    def __init__(self, bandit, mu_prior, nu_prior, alpha_prior, beta_prior,
+            memory_multiplier=1.0):
+        ThompsonSampling.__init__(self, bandit,
+                mu=mu_prior, nu=nu_prior, alpha=alpha_prior, beta=beta_prior)
+        self.sufficient_statistics = {
+                'n': np.zeros(self.num_arms),
+                'xsum': np.zeros(self.num_arms),
+                'x2sum': np.zeros(self.num_arms),
+                }
+        if memory_multiplier <= 0 or memory_multiplier > 1:
+            raise ValueError("Memory Multiplier should be in (0,1]")
+        self.memory_multiplier = memory_multiplier
+
+    def _sample(self, mu, nu, alpha, beta):
+        sigma2 = scipy.stats.invgamma.rvs(a=alpha, scale=beta)
+        return np.random.normal(loc=mu, scale=np.sqrt(sigma2/nu))
+
+    def _update_posterior(self, arm_index, observed_reward):
+        # Update Sufficient Statistics of arm_index
+        self.sufficient_statistics['n'][arm_index] += 1
+        self.sufficient_statistics['xsum'][arm_index] += observed_reward
+        self.sufficient_statistics['x2sum'][arm_index] += observed_reward**2
+
+        # Memory Multiplier Decay
+        self.sufficient_statistics['n'] *= self.memory_multiplier
+        self.sufficient_statistics['xsum'] *= self.memory_multiplier
+        self.sufficient_statistics['x2sum'] *= self.memory_multiplier
+
+        # Update posterior params -> Complicated due to posterior_params
+        #                            (really should use pandas)
+        for index in range(self.num_arms):
+            n = self.sufficient_statistics['n'][index]
+            xsum = self.sufficient_statistics['xsum'][index]
+            x2sum = self.sufficient_statistics['x2sum'][index]
+            mu = self.prior_params[index]['mu']
+            nu = self.prior_params[index]['nu']
+            alpha = self.prior_params[index]['alpha']
+            beta = self.prior_params[index]['beta']
+
+            # Terminate early if no data to update
+            if n == 0:
+                continue
+
+            # Conjugate Prior Update
+            self.posterior_params[index]['mu'] = (mu * nu + xsum)/(nu + n)
+            self.posterior_params[index]['nu'] = nu + n
+            self.posterior_params[index]['alpha'] = alpha + n/2.0
+            self.posterior_params[index]['beta'] = \
+                    beta + 0.5*(x2sum - xsum**2/n) + \
+                    0.5*(nu*n)/(nu+n)*(xsum/n - mu)**2
+        return
+
+    @property
+    def estimated_arm_means(self):
+        return np.array([params['mu'] for params in self.posterior_params])
+
+    @property
+    def estimated_arm_sds(self):
+        return np.array([
+            np.sqrt(params['beta'] / (params['alpha']-1) / params['nu'])
             for params in self.posterior_params])
 
 
