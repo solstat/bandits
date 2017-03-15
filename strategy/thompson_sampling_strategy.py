@@ -25,7 +25,6 @@ class ThompsonSampling(Strategy):
     """
     def __init__(self, bandit, **kwargs):
         self.bandit = bandit
-        self.num_arms = bandit.num_arms
         self.prior_params = [deepcopy(kwargs) for _ in range(self.num_arms)]
         self.posterior_params = deepcopy(self.prior_params)
 
@@ -39,7 +38,7 @@ class ThompsonSampling(Strategy):
         estimated_arm_sds = [None] * iterations
         for i in range(iterations):
             index_arms_pulled[i] = self._choose_arm()
-            observed_rewards[i] = self.pull_arm(index_arms_pulled[i])
+            observed_rewards[i] = self._pull_arm(index_arms_pulled[i])
             self._update_posterior(index_arms_pulled[i], observed_rewards[i])
             estimated_arm_means[i] = self.estimated_arm_means
             estimated_arm_sds[i] = self.estimated_arm_sds
@@ -59,7 +58,7 @@ class ThompsonSampling(Strategy):
         samples = [self._sample(**params) for params in self.posterior_params]
         return np.argmax(samples)
 
-    def pull_arm(self, arm_index):
+    def _pull_arm(self, arm_index):
         return self.bandit.pull_arm(arm_index)
 
     def _sample(self, **kwargs):
@@ -67,6 +66,10 @@ class ThompsonSampling(Strategy):
 
     def _update_posterior(self, arm_index, observed_reward):
         raise NotImplementedError
+
+    @property
+    def num_arms(self):
+        return bandit.num_arms
 
     @property
     def estimated_arm_means(self):
